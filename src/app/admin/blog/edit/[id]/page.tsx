@@ -10,14 +10,18 @@ import Link from "next/link";
 import { LogOut, PlusCircle, Trash2, X } from "lucide-react";
 import AuthGuard from "@/components/auth/AuthGuard";
 
-// Define the structure for a content section
-interface ContentSection {
-  id: number;
+// Define the structure for a content section from the API
+interface APIContentSection {
   title: string;
   subtitle: string;
   body: string;
-  image: File | null;
   imageUrl?: string;
+}
+
+// Define the full structure for our state
+interface ContentSection extends APIContentSection {
+  id: number;
+  image: File | null;
 }
 
 export default function EditBlogPage() {
@@ -25,16 +29,12 @@ export default function EditBlogPage() {
   const params = useParams();
   const id = params.id as string;
 
-  // State for post details
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [excerpt, setExcerpt] = useState("");
   const [tags, setTags] = useState("");
   const [date, setDate] = useState("");
-  
-  // State for dynamic content sections
   const [sections, setSections] = useState<ContentSection[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -52,11 +52,20 @@ export default function EditBlogPage() {
           setExcerpt(data.excerpt || "");
           setTags((data.tags || []).join(', '));
           setDate(data.date);
-          setSections((data.content || []).map((item: any, index: number) => ({ ...item, id: Date.now() + index, image: null })) );
+          // Fixed: Mapped the API data to our state structure
+          setSections((data.content || []).map((item: APIContentSection, index: number) => ({
+            ...item,
+            id: Date.now() + index,
+            image: null
+          })));
 
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(error);
-          setMessage("Error: Could not load post data.");
+          if (error instanceof Error) {
+            setMessage(`Error: ${error.message}`);
+          } else {
+            setMessage("Error: An unknown error occurred.");
+          }
         } finally {
           setIsLoading(false);
         }
@@ -70,9 +79,8 @@ export default function EditBlogPage() {
     router.push('/admin/login');
   };
 
-  // --- Section Management Handlers ---
   const addSection = () => {
-    setSections([...sections, { id: Date.now(), title: "", subtitle: "", body: "", image: null }]);
+    setSections([...sections, { id: Date.now(), title: "", subtitle: "", body: "", image: null, imageUrl: "" }]);
   };
 
   const removeSection = (id: number) => {
@@ -85,7 +93,6 @@ export default function EditBlogPage() {
     ));
   };
 
-  // ACTION: Add a handler to remove an image from a section
   const handleRemoveImage = (id: number) => {
     setSections(sections.map(section => 
       section.id === id ? { ...section, imageUrl: '', image: null } : section
@@ -146,13 +153,14 @@ export default function EditBlogPage() {
       setTimeout(() => router.push('/admin/blog'), 1500);
 
     } catch (error: unknown) {
-    // Check if the error is an instance of Error before accessing its properties
-    if (error instanceof Error) {
+      if (error instanceof Error) {
         setMessage(`Error: ${error.message}`);
-    } else {
+      } else {
         setMessage("An unknown error occurred.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-}
   };
 
   if (isLoading) {
@@ -196,44 +204,47 @@ export default function EditBlogPage() {
                     <label htmlFor="tags" className="block text-sm font-medium text-gray-700">Tags</label>
                     <Input id="tags" value={tags} onChange={(e) => setTags(e.target.value)} />
                   </div>
+                  <div>
+                    <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date</label>
+                    <Input id="date" type="text" value={date} onChange={(e) => setDate(e.target.value)} required />
+                  </div>
                 </div>
 
                 <div className="p-4 border rounded-lg space-y-4">
                   <h3 className="font-semibold text-lg">Post Content</h3>
                   {sections.map((section, index) => (
                     <div key={section.id} className="p-4 border rounded-md relative space-y-3">
-                        <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7" onClick={() => removeSection(section.id)}>
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                        <h4 className="font-medium">Section {index + 1}</h4>
-                        <Input value={section.title} onChange={(e) => handleSectionChange(section.id, 'title', e.target.value)} placeholder="Section Title (optional)" />
-                        <Input value={section.subtitle} onChange={(e) => handleSectionChange(section.id, 'subtitle', e.target.value)} placeholder="Section Subtitle (optional)" />
-                        <Textarea value={section.body} onChange={(e) => handleSectionChange(section.id, 'body', e.target.value)} placeholder="Section body text..." className="min-h-[120px]" />
-                        
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Image</label>
-                            <div className="relative w-full max-w-xs">
-                                {section.image ? (
-                                    <img src={URL.createObjectURL(section.image)} alt="New preview" className="rounded-md w-full h-auto" />
-                                ) : section.imageUrl ? (
-                                    <img src={section.imageUrl} alt="Current image" className="rounded-md w-full h-auto" />
-                                ) : null}
-                                
-                                {/* ACTION: Add a remove button if an image exists */}
-                                {(section.imageUrl || section.image) && (
-                                    <Button 
-                                        type="button" 
-                                        variant="destructive" 
-                                        size="icon" 
-                                        className="absolute top-1 right-1 h-6 w-6"
-                                        onClick={() => handleRemoveImage(section.id)}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                )}
-                            </div>
-                            <Input type="file" onChange={(e) => handleSectionChange(section.id, 'image', e.target.files ? e.target.files[0] : null)} />
+                      <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7" onClick={() => removeSection(section.id)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                      <h4 className="font-medium">Section {index + 1}</h4>
+                      <Input value={section.title} onChange={(e) => handleSectionChange(section.id, 'title', e.target.value)} placeholder="Section Title (optional)" />
+                      <Input value={section.subtitle} onChange={(e) => handleSectionChange(section.id, 'subtitle', e.target.value)} placeholder="Section Subtitle (optional)" />
+                      <Textarea value={section.body} onChange={(e) => handleSectionChange(section.id, 'body', e.target.value)} placeholder="Section body text..." className="min-h-[120px]" />
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Image</label>
+                        <div className="relative w-full max-w-xs">
+                          {section.image ? (
+                            <img src={URL.createObjectURL(section.image)} alt="New preview" className="rounded-md w-full h-auto" />
+                          ) : section.imageUrl ? (
+                            <img src={section.imageUrl} alt="Current image" className="rounded-md w-full h-auto" />
+                          ) : null}
+                          
+                          {(section.imageUrl || section.image) && (
+                            <Button 
+                                type="button" 
+                                variant="destructive" 
+                                size="icon" 
+                                className="absolute top-1 right-1 h-6 w-6"
+                                onClick={() => handleRemoveImage(section.id)}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
+                        <Input type="file" onChange={(e) => handleSectionChange(section.id, 'image', e.target.files ? e.target.files[0] : null)} />
+                      </div>
                     </div>
                   ))}
                   <Button type="button" variant="outline" onClick={addSection}>
