@@ -145,12 +145,14 @@ export default function EditBlogPage() {
       setMessage("Success! Post updated. Redirecting...");
       setTimeout(() => router.push('/admin/blog'), 1500);
 
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
+   } catch (error: unknown) {
+    // Check if the error is an instance of Error before accessing its properties
+    if (error instanceof Error) {
+        setMessage(`Error: ${error.message}`);
+    } else {
+        setMessage("An unknown error occurred.");
     }
-  };
+}
 
   if (isLoading) {
     return <AuthGuard><div className="text-center py-24">Loading post...</div></AuthGuard>;
@@ -251,3 +253,4 @@ export default function EditBlogPage() {
     </AuthGuard>
   );
 }
+
