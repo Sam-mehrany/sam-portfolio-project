@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-import { ArrowLeft, LogOut, PlusCircle, Trash2, X } from "lucide-react";
+import { ArrowLeft, LogOut, PlusCircle } from "lucide-react";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
